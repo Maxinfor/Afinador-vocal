@@ -2,124 +2,79 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Treino de Voz Pro</title>
+    <title>Vocal Master Pro</title>
     <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            text-align: center; 
-            background-color: #121212; 
-            color: #ffffff; 
-            padding: 20px; 
-        }
-        #status { 
-            padding: 30px; 
-            font-size: 2rem; 
-            margin: 20px auto; 
-            border-radius: 20px; 
-            width: 80%; 
-            max-width: 400px;
-            transition: all 0.3s ease;
-        }
-        .correto { background-color: #1b5e20; border: 3px solid #4caf50; }
-        .erro { background-color: #b71c1c; border: 3px solid #f44336; }
-        
-        select, button { 
-            padding: 12px 20px; 
-            font-size: 16px; 
-            border-radius: 8px; 
-            border: none;
-            margin: 5px;
-            cursor: pointer;
-        }
-        button { background-color: #6200ee; color: white; font-weight: bold; }
-        .controls { background: #1e1e1e; padding: 20px; border-radius: 15px; display: inline-block; }
-        #notasList { color: #888; font-style: italic; margin-top: 10px; }
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; }
+        canvas { width: 100%; height: 150px; background: #111; border-bottom: 2px solid #6200ee; }
+        #status { font-size: 4rem; font-weight: bold; margin: 20px 0; }
+        .controls { padding: 20px; }
+        .correto { color: #4caf50; }
+        .erro { color: #f44336; }
     </style>
 </head>
 <body>
 
-    <h1>Vocal Pitch Trainer</h1>
+    <canvas id="visualizador"></canvas>
+    <div id="status">--</div>
     
     <div class="controls">
-        <label>Selecione o Tom:</label><br>
-        <select id="tonalidade">
-            <optgroup label="Maiores">
-                <option value="C">Dó Maior (C)</option>
-                <option value="G">Sol Maior (G)</option>
-                <option value="D">Ré Maior (D)</option>
-                <option value="A">Lá Maior (A)</option>
-                <option value="E">Mi Maior (E)</option>
-                <option value="F">Fá Maior (F)</option>
-            </optgroup>
-            <optgroup label="Menores">
-                <option value="Am">Lá Menor (Am)</option>
-                <option value="Em">Mi Menor (Em)</option>
-                <option value="Dm">Ré Menor (Dm)</option>
-                <option value="Bm">Si Menor (Bm)</option>
-            </optgroup>
-        </select>
-        <button onclick="atualizarCampo()">Carregar Escala</button>
+        <input type="file" id="uploadMusica" accept="audio/*">
+        <audio id="playerAudio" controls></audio>
         <br><br>
-        <button id="btnIniciar" style="background-color: #03dac6; color: #000;">Ligar Microfone</button>
+        <button id="btnIniciar">Ligar Microfone</button>
     </div>
 
-    <div id="status">Status: Pronto</div>
-    <p id="notasList">Escolha um campo para começar</p>
-
     <script>
-        const dicionarioEscalas = {
-            "C": ["C", "D", "E", "F", "G", "A", "B"],
-            "G": ["G", "A", "B", "C", "D", "E", "F#"],
-            "D": ["D", "E", "F#", "G", "A", "B", "C#"],
-            "A": ["A", "B", "C#", "D", "E", "F#", "G#"],
-            "E": ["E", "F#", "G#", "A", "B", "C#", "D#"],
-            "F": ["F", "G", "A", "Bb", "C", "D", "E"],
-            "Am": ["A", "B", "C", "D", "E", "F", "G"],
-            "Em": ["E", "F#", "G", "A", "B", "C", "D"],
-            "Dm": ["D", "E", "F", "G", "A", "Bb", "C"],
-            "Bm": ["B", "C#", "D", "E", "F#", "G", "A"]
-        };
+        const canvas = document.getElementById('visualizador');
+        const ctx = canvas.getContext('2d');
+        let audioContext, analyser, dataArray, pitch;
 
-        let campoAtivo = [];
-        let audioContext, pitch;
-
-        function atualizarCampo() {
-            const selecao = document.getElementById('tonalidade').value;
-            campoAtivo = dicionarioEscalas[selecao];
-            document.getElementById('notasList').innerText = "Notas no tom: " + campoAtivo.join(", ");
-        }
-
-        function frequencyToNote(frequency) {
-            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-            const midiNumber = Math.round(12 * Math.log2(frequency / 440) + 69);
-            return noteNames[midiNumber % 12];
+        // Configuração do Visualizador (Osciloscópio)
+        function desenharOnda() {
+            requestAnimationFrame(desenharOnda);
+            analyser.getByteTimeDomainData(dataArray);
+            ctx.fillStyle = '#111';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#03dac6';
+            ctx.beginPath();
+            let sliceWidth = canvas.width / 128;
+            let x = 0;
+            for (let i = 0; i < 128; i++) {
+                let v = dataArray[i] / 128.0;
+                let y = v * canvas.height / 2;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                x += sliceWidth;
+            }
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
         }
 
         document.getElementById('btnIniciar').addEventListener('click', async () => {
             audioContext = new AudioContext();
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // O modelo 'pitchDetection' precisa do caminho do modelo. 
-            // Usamos o padrão do ml5 para carregamento via CDN.
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            dataArray = new Uint8Array(analyser.fftSize);
+            
+            const source = audioContext.createMediaStreamSource(stream);
+            source.connect(analyser);
+
             pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, stream, () => {
-                document.getElementById('status').innerText = "Ouvindo...";
+                desenharOnda();
                 loop();
             });
         });
 
         function loop() {
             pitch.getPitch((err, frequency) => {
-                if (frequency && frequency > 50 && frequency < 2000) {
-                    let nota = frequencyToNote(frequency);
-                    if (campoAtivo.includes(nota)) {
-                        document.getElementById('status').innerText = nota;
-                        document.getElementById('status').className = "correto";
-                    } else {
-                        document.getElementById('status').innerText = nota;
-                        document.getElementById('status').className = "erro";
-                    }
+                if (frequency) {
+                    const note = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][Math.round(12 * Math.log2(frequency / 440) + 69) % 12];
+                    const status = document.getElementById('status');
+                    status.innerText = note;
+                    status.className = "correto";
                 }
                 loop();
             });
