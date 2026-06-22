@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
     <meta charset="UTF-8">
     <title>App de Afinação</title>
+    <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        /* O CSS fica aqui dentro da tag <style> */
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        #status { font-weight: bold; margin-top: 20px; padding: 20px; border: 1px solid #ccc; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        #status { padding: 20px; font-size: 24px; margin: 20px; border-radius: 10px; }
         .correto { background-color: #d4edda; color: #155724; }
         .erro { background-color: #f8d7da; color: #721c24; }
     </style>
@@ -14,28 +14,43 @@
 <body>
 
     <h1>Detector de Campo Harmônico</h1>
-    <button id="btnIniciar">Ligar Microfone</button>
-    <div id="status">Status: Aguardando permissão...</div>
+    <button id="btn">Ligar Microfone</button>
+    <div id="status">Pressione para começar</div>
 
     <script>
-        // O JavaScript fica aqui dentro da tag <script>
-        const btn = document.getElementById('btnIniciar');
-        const statusDiv = document.getElementById('status');
-        const campoHarmonico = ["C", "D", "E", "F", "G", "A", "B"]; // Escala de Dó
+        const campoHarmonico = ["C", "D", "E", "F", "G", "A", "B"];
+        let audioContext, pitch;
 
-        btn.addEventListener('click', async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                statusDiv.innerText = "Monitorando... (Cante uma nota)";
-                statusDiv.className = "correto";
-                
-                // Futura lógica de análise virá aqui
-                console.log("Microfone ativo");
-            } catch (err) {
-                statusDiv.innerText = "Erro ao acessar microfone: " + err.message;
-                statusDiv.className = "erro";
-            }
+        document.getElementById('btn').addEventListener('click', async () => {
+            audioContext = new AudioContext();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Inicializa o ml5.js
+            pitch = ml5.pitchDetection('./model', audioContext, stream, () => {
+                document.getElementById('status').innerText = "Ouvindo...";
+                getPitch();
+            });
         });
+
+        function getPitch() {
+            pitch.getPitch((err, frequency) => {
+                if (frequency) {
+                    // ml5 retorna a frequência, vamos simplificar para a nota
+                    // Aqui você faria a conversão de Hz para nota (ex: 261Hz -> C)
+                    // Para simplificar, vamos exibir a frequência:
+                    let nota = "C"; // Exemplo fixo por enquanto
+                    
+                    if (campoHarmonico.includes(nota)) {
+                        document.getElementById('status').innerText = "Dentro do campo: " + nota;
+                        document.getElementById('status').className = "correto";
+                    } else {
+                        document.getElementById('status').innerText = "Fora do tom!";
+                        document.getElementById('status').className = "erro";
+                    }
+                }
+                getPitch(); // Loop contínuo
+            });
+        }
     </script>
 </body>
 </html>
