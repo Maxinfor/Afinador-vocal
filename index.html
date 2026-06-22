@@ -1,56 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>App de Afinação</title>
+    <title>Detector de Campo Harmônico</title>
     <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; }
-        #status { padding: 20px; font-size: 24px; margin: 20px; border-radius: 10px; }
-        .correto { background-color: #d4edda; color: #155724; }
-        .erro { background-color: #f8d7da; color: #721c24; }
+        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
+        #status { padding: 20px; font-size: 20px; margin: 20px auto; border-radius: 10px; max-width: 300px; }
+        .correto { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .erro { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        select, button { padding: 10px; margin: 5px; font-size: 16px; }
     </style>
 </head>
 <body>
 
-    <h1>Detector de Campo Harmônico</h1>
-    <button id="btn">Ligar Microfone</button>
-    <div id="status">Pressione para começar</div>
+    <h1>Detector de Campo</h1>
+    
+    <label>Escolha o Campo:</label>
+    <select id="tonalidade">
+        <optgroup label="Maiores">
+            <option value="C">Dó Maior (C)</option>
+            <option value="G">Sol Maior (G)</option>
+            <option value="D">Ré Maior (D)</option>
+        </optgroup>
+        <optgroup label="Menores">
+            <option value="Am">Lá Menor (Am)</option>
+            <option value="Em">Mi Menor (Em)</option>
+        </optgroup>
+    </select>
+    <button onclick="atualizarCampo()">Aplicar</button>
+    <br><br>
+    <button id="btnIniciar">Ligar Microfone</button>
+    <div id="status" class="correto">Aguardando...</div>
+    <p id="notasList"></p>
 
     <script>
-        const campoHarmonico = ["C", "D", "E", "F", "G", "A", "B"];
+        const dicionarioEscalas = {
+            "C": ["C", "D", "E", "F", "G", "A", "B"],
+            "G": ["G", "A", "B", "C", "D", "E", "F#"],
+            "D": ["D", "E", "F#", "G", "A", "B", "C#"],
+            "Am": ["A", "B", "C", "D", "E", "F", "G"],
+            "Em": ["E", "F#", "G", "A", "B", "C", "D"]
+        };
+
+        let campoAtivo = dicionarioEscalas["C"];
         let audioContext, pitch;
 
-        document.getElementById('btn').addEventListener('click', async () => {
-            audioContext = new AudioContext();
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            
-            // Inicializa o ml5.js
-            pitch = ml5.pitchDetection('./model', audioContext, stream, () => {
-                document.getElementById('status').innerText = "Ouvindo...";
-                getPitch();
-            });
-        });
-
-        function getPitch() {
-            pitch.getPitch((err, frequency) => {
-                if (frequency) {
-                    // ml5 retorna a frequência, vamos simplificar para a nota
-                    // Aqui você faria a conversão de Hz para nota (ex: 261Hz -> C)
-                    // Para simplificar, vamos exibir a frequência:
-                    let nota = "C"; // Exemplo fixo por enquanto
-                    
-                    if (campoHarmonico.includes(nota)) {
-                        document.getElementById('status').innerText = "Dentro do campo: " + nota;
-                        document.getElementById('status').className = "correto";
-                    } else {
-                        document.getElementById('status').innerText = "Fora do tom!";
-                        document.getElementById('status').className = "erro";
-                    }
-                }
-                getPitch(); // Loop contínuo
-            });
+        function atualizarCampo() {
+            const selecao = document.getElementById('tonalidade').value;
+            campoAtivo = dicionarioEscalas[selecao];
+            document.getElementById('notasList').innerText = "Notas: " + campoAtivo.join(", ");
         }
-    </script>
-</body>
-</html>
+
+        function frequencyToNote(frequency) {
+            const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            const midiNumber = Math.round(12 * Math.log2(frequency / 440) + 69);
+            return noteNames[midiNumber % 12];
+        }
+
+        document.getElementById('btnIniciar').addEventListener
