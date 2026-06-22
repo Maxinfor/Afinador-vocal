@@ -2,54 +2,93 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Detector de Campo Harmônico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treino de Voz Pro</title>
     <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 20px; background-color: #f4f4f9; }
-        #status { padding: 20px; font-size: 20px; margin: 20px auto; border-radius: 10px; max-width: 300px; }
-        .correto { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .erro { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        select, button { padding: 10px; margin: 5px; font-size: 16px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            text-align: center; 
+            background-color: #121212; 
+            color: #ffffff; 
+            padding: 20px; 
+        }
+        #status { 
+            padding: 30px; 
+            font-size: 2rem; 
+            margin: 20px auto; 
+            border-radius: 20px; 
+            width: 80%; 
+            max-width: 400px;
+            transition: all 0.3s ease;
+        }
+        .correto { background-color: #1b5e20; border: 3px solid #4caf50; }
+        .erro { background-color: #b71c1c; border: 3px solid #f44336; }
+        
+        select, button { 
+            padding: 12px 20px; 
+            font-size: 16px; 
+            border-radius: 8px; 
+            border: none;
+            margin: 5px;
+            cursor: pointer;
+        }
+        button { background-color: #6200ee; color: white; font-weight: bold; }
+        .controls { background: #1e1e1e; padding: 20px; border-radius: 15px; display: inline-block; }
+        #notasList { color: #888; font-style: italic; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>Detector de Campo</h1>
+    <h1>Vocal Pitch Trainer</h1>
     
-    <label>Escolha o Campo:</label>
-    <select id="tonalidade">
-        <optgroup label="Maiores">
-            <option value="C">Dó Maior (C)</option>
-            <option value="G">Sol Maior (G)</option>
-            <option value="D">Ré Maior (D)</option>
-        </optgroup>
-        <optgroup label="Menores">
-            <option value="Am">Lá Menor (Am)</option>
-            <option value="Em">Mi Menor (Em)</option>
-        </optgroup>
-    </select>
-    <button onclick="atualizarCampo()">Aplicar</button>
-    <br><br>
-    <button id="btnIniciar">Ligar Microfone</button>
-    <div id="status" class="correto">Aguardando...</div>
-    <p id="notasList"></p>
+    <div class="controls">
+        <label>Selecione o Tom:</label><br>
+        <select id="tonalidade">
+            <optgroup label="Maiores">
+                <option value="C">Dó Maior (C)</option>
+                <option value="G">Sol Maior (G)</option>
+                <option value="D">Ré Maior (D)</option>
+                <option value="A">Lá Maior (A)</option>
+                <option value="E">Mi Maior (E)</option>
+                <option value="F">Fá Maior (F)</option>
+            </optgroup>
+            <optgroup label="Menores">
+                <option value="Am">Lá Menor (Am)</option>
+                <option value="Em">Mi Menor (Em)</option>
+                <option value="Dm">Ré Menor (Dm)</option>
+                <option value="Bm">Si Menor (Bm)</option>
+            </optgroup>
+        </select>
+        <button onclick="atualizarCampo()">Carregar Escala</button>
+        <br><br>
+        <button id="btnIniciar" style="background-color: #03dac6; color: #000;">Ligar Microfone</button>
+    </div>
+
+    <div id="status">Status: Pronto</div>
+    <p id="notasList">Escolha um campo para começar</p>
 
     <script>
         const dicionarioEscalas = {
             "C": ["C", "D", "E", "F", "G", "A", "B"],
             "G": ["G", "A", "B", "C", "D", "E", "F#"],
             "D": ["D", "E", "F#", "G", "A", "B", "C#"],
+            "A": ["A", "B", "C#", "D", "E", "F#", "G#"],
+            "E": ["E", "F#", "G#", "A", "B", "C#", "D#"],
+            "F": ["F", "G", "A", "Bb", "C", "D", "E"],
             "Am": ["A", "B", "C", "D", "E", "F", "G"],
-            "Em": ["E", "F#", "G", "A", "B", "C", "D"]
+            "Em": ["E", "F#", "G", "A", "B", "C", "D"],
+            "Dm": ["D", "E", "F", "G", "A", "Bb", "C"],
+            "Bm": ["B", "C#", "D", "E", "F#", "G", "A"]
         };
 
-        let campoAtivo = dicionarioEscalas["C"];
+        let campoAtivo = [];
         let audioContext, pitch;
 
         function atualizarCampo() {
             const selecao = document.getElementById('tonalidade').value;
             campoAtivo = dicionarioEscalas[selecao];
-            document.getElementById('notasList').innerText = "Notas: " + campoAtivo.join(", ");
+            document.getElementById('notasList').innerText = "Notas no tom: " + campoAtivo.join(", ");
         }
 
         function frequencyToNote(frequency) {
@@ -58,4 +97,33 @@
             return noteNames[midiNumber % 12];
         }
 
-        document.getElementById('btnIniciar').addEventListener
+        document.getElementById('btnIniciar').addEventListener('click', async () => {
+            audioContext = new AudioContext();
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // O modelo 'pitchDetection' precisa do caminho do modelo. 
+            // Usamos o padrão do ml5 para carregamento via CDN.
+            pitch = ml5.pitchDetection('https://cdn.jsdelivr.net/gh/ml5js/ml5-data-and-models/models/pitch-detection/crepe/', audioContext, stream, () => {
+                document.getElementById('status').innerText = "Ouvindo...";
+                loop();
+            });
+        });
+
+        function loop() {
+            pitch.getPitch((err, frequency) => {
+                if (frequency && frequency > 50 && frequency < 2000) {
+                    let nota = frequencyToNote(frequency);
+                    if (campoAtivo.includes(nota)) {
+                        document.getElementById('status').innerText = nota;
+                        document.getElementById('status').className = "correto";
+                    } else {
+                        document.getElementById('status').innerText = nota;
+                        document.getElementById('status').className = "erro";
+                    }
+                }
+                loop();
+            });
+        }
+    </script>
+</body>
+</html>
