@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>App de Afinação</title>
+    <style>
+        /* O CSS fica aqui dentro da tag <style> */
+        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+        #status { font-weight: bold; margin-top: 20px; padding: 20px; border: 1px solid #ccc; }
+        .correto { background-color: #d4edda; color: #155724; }
+        .erro { background-color: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <h1>Detector de Campo Harmônico</h1>
+    <button id="btnIniciar">Ligar Microfone</button>
+    <div id="status">Status: Aguardando permissão...</div>
+
+    <script>
+        // O JavaScript fica aqui dentro da tag <script>
+        const btn = document.getElementById('btnIniciar');
+        const statusDiv = document.getElementById('status');
+        const campoHarmonico = ["C", "D", "E", "F", "G", "A", "B"]; // Escala de Dó
+
+        btn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                statusDiv.innerText = "Monitorando... (Cante uma nota)";
+                statusDiv.className = "correto";
+                
+                // Futura lógica de análise virá aqui
+                console.log("Microfone ativo");
+            } catch (err) {
+                statusDiv.innerText = "Erro ao acessar microfone: " + err.message;
+                statusDiv.className = "erro";
+            }
+        });
+    </script>
+</body>
+</html>
